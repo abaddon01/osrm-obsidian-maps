@@ -38,7 +38,8 @@ export class StyleManager {
 					// Transform mapbox:// protocol URLs to HTTPS URLs if needed
 					const transformedStyle = accessToken
 						? transformMapboxStyle(styleJson, accessToken)
-						: styleJson;
+						: this.addTerrain(styleJson);
+                                        
 					return transformedStyle as StyleSpecification;
 				}
 			} catch (error) {
@@ -68,8 +69,59 @@ export class StyleManager {
 				source: sourceId
 			});
 		});
+                // spec.sources['osm']= {
+                //        type: "raster",
+                //        tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+                //        tileSize: 256,
+                //        attribution: "&copy; OpenStreetMap Contributors",
+                //        maxzoom: 12,
+                //    };
+                spec.sources['terrainSource']= {
+                        type: "raster-dem",
+                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+                        tileSize: 256,
+                    };
+                    spec.sources['hillshadeSource']= {                    
+                        type: "raster-dem",
+                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+                        tileSize: 256,
+                    };
+                 spec.terrain={
+                    source: "terrainSource",
+                    exaggeration: 1.5,
+                }                
 		return spec;
 	}
+
+        private addTerrain(spec:StyleSpecification):StyleSpecification
+        {
+            spec.sources['terrainSource']= {
+                        type: "raster-dem",
+                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+                        tileSize: 256,
+                    };
+                    spec.sources['hillshadeSource']= {                    
+                        type: "raster-dem",
+                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+                        tileSize: 256,
+                    };
+                 spec.terrain={
+                    source: "terrainSource",
+                    exaggeration: 1.5,
+                };
+                spec.layers.push(
+                    {
+                      id: "hills",
+                      type: "hillshade",
+                      source: "hillshadeSource",
+                      layout: { visibility: "visible" },
+                      paint: { "hillshade-shadow-color": "#473B24" },
+                    }                    
+                );
+                   
+                return spec;
+                
+        }
 
 	private isTileTemplateUrl(url: string): boolean {
 		// Check if the URL contains tile template placeholders
