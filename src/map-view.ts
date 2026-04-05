@@ -9,7 +9,8 @@ import {
     NullValue,
     ViewOption,
 } from 'obsidian';
-import { LngLatLike, Map, setRTLTextPlugin } from 'maplibre-gl';
+import { LngLatLike, Map, setRTLTextPlugin ,GeoJSONSourceSpecification,GeoJSONSource, RequestParameters, ResourceType} from 'maplibre-gl';
+
 import type ObsidianMapsPlugin from './main';
 import { DEFAULT_MAP_HEIGHT, DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from './map/constants';
 import { CustomZoomControl } from './map/controls/zoom-control';
@@ -19,6 +20,8 @@ import { PopupManager } from './map/popup';
 import { MarkerManager } from './map/markers';
 import { hasOwnProperty, coordinateFromValue } from './map/utils';
 import { rtlPluginCode } from './map/rtl-plugin-code';
+import * as turf from '@turf/turf';
+import {Feature, FeatureCollection, Geometry, LineString, Point} from 'geojson';
 
 interface MapConfig {
     coordinatesProp: BasesPropertyId | null;
@@ -195,6 +198,7 @@ export class MapView extends BasesView {
         }
 
         // Initialize MapLibre GL JS map with configured tiles or default style
+
         this.map = new Map({
             container: this.mapEl,
             style: {
@@ -211,6 +215,7 @@ export class MapView extends BasesView {
                         type: "raster-dem",
                         tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
                         tileSize: 256,
+                         maxzoom: 12,
                     },
                     hillshadeSource: {
                         type: "raster-dem",
@@ -243,12 +248,14 @@ export class MapView extends BasesView {
             minZoom: this.mapConfig.minZoom,
             maxZoom: this.mapConfig.maxZoom,
             maxPitch: 85,
+            transformRequest:this.transformRequest
+            
         });
 
         // Set map reference in managers
         this.popupManager.setMap(this.map);
         this.markerManager.setMap(this.map);
-
+//        /this.addMeasure(this.map);
         this.map.addControl(new CustomZoomControl(), 'top-right');
 
         // Add background switcher if multiple tile sets are available
@@ -275,7 +282,7 @@ export class MapView extends BasesView {
         // Ensure the center and zoom are set after map loads (in case the style loading overrides it)
         this.map.on('load', () => {
             if (!this.map || !this.mapConfig) return;
-
+            this.addMeasure(this.map)
             // If we were restoring state, do not reset to defaults
             if (isRestoringState || this.pendingMapState) return;
 
@@ -316,6 +323,16 @@ export class MapView extends BasesView {
         });
     }
 
+    private transformRequest(url:string, resourceType:ResourceType):RequestParameters | undefined{
+        return {
+            url: url,
+            headers:{                            
+                'Referer': window.location.href,                                
+                "referer":window.location.href
+                },
+        }
+    }
+    
     private destroyMap(): void {
         this.popupManager.destroy();
         if (this.map) {
@@ -722,30 +739,37 @@ export class MapView extends BasesView {
 
 private addMeasure(map:Map)
 {
+    return;
     const distanceContainer = document.getElementById('distance');
 
+
+
     // GeoJSON object to hold our measurement features
-    const geojson = {
+    const geojson:GeoJSON.FeatureCollection = {
         'type': 'FeatureCollection',
         'features': []
-    };
+    } as FeatureCollection;
 
+
+   
     // Used to draw a line between points
-    const linestring = {
+    const linestring: GeoJSON.Feature<LineString>= {
         'type': 'Feature',
+        'properties':[],
         'geometry': {
             'type': 'LineString',
-            'coordinates': []
-        }
+            'coordinates': [],            
+        } as GeoJSON.LineString
     };
 
-    map.on('load', () => {
-        map.addSource('geojson', {
+    //map.on('load', () => {
+        map.addSource('line_geojson', {
             'type': 'geojson',
-            'data': geojson
+            'data': geojson 
         });
 
         // Add styles to the map
+        console.info("adding layers?");
         map.addLayer({
             id: 'measure-points',
             type: 'circle',
@@ -779,7 +803,7 @@ private addMeasure(map:Map)
             // Remove the linestring from the group
             // So we can redraw it based on the points collection
             if (geojson.features.length > 1) geojson.features.pop();
-
+            if ( !distanceContainer) return;
             // Clear the Distance container to populate it with a new value
             distanceContainer.innerHTML = '';
 
@@ -787,44 +811,49 @@ private addMeasure(map:Map)
             if (features.length) {
                 const id = features[0].properties.id;
                 geojson.features = geojson.features.filter((point) => {
-                    return point.properties.id !== id;
+                    if ( point.properties)
+                        return point.properties.id !== id;
+                    else return false;
                 });
             } else {
-                const point = {
+                const point:GeoJSON.Feature<Point> = {
                     'type': 'Feature',
                     'geometry': {
                         'type': 'Point',
                         'coordinates': [e.lngLat.lng, e.lngLat.lat]
-                    },
+                    } as GeoJSON.Point,
                     'properties': {
                         'id': String(new Date().getTime())
                     }
                 };
 
-                geojson.features.push(point);
+                geojson.features.push(point as Feature);
             }
 
             if (geojson.features.length > 1) {
-                linestring.geometry.coordinates = geojson.features.map(
+                 
+                (linestring.geometry as LineString).coordinates = geojson.features.map(
                     (point) => {
-                        return point.geometry.coordinates;
+                        return (point.geometry as Point).coordinates;
                     }
                 );
 
-                geojson.features.push(linestring);
+                geojson.features.push(linestring );
 
                 // Populate the distanceContainer with total distance
                 const value = document.createElement('pre');
+                turf.distance(turf.point(linestring.geometry.coordinates[0]), turf.point(linestring.geometry.coordinates[1]));
                 value.textContent =
-                    `Total distance: ${
-                        turf.length(linestring).toLocaleString()
+                    `Total distance: ${                        
+                    turf.distance(turf.point(linestring.geometry.coordinates[0]), turf.point(linestring.geometry.coordinates[1]))
+                        //turf.lineDistance(linestring,"kilometers")
                     }km`;
                 distanceContainer.appendChild(value);
             }
 
-            map.getSource('geojson').setData(geojson);
+           
         });
-    });
+    //});
 
     map.on('mousemove', (e) => {
         const features = map.queryRenderedFeatures(e.point, {

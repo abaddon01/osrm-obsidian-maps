@@ -19,6 +19,7 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "24.6.1",
+		"@types/turf": "^3.5.32",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
 		"@typescript-eslint/parser": "5.29.0",
 		"builtin-modules": "3.3.0",
@@ -29,6 +30,8 @@
 	},
 	"dependencies": {
 		"@mapbox/mapbox-gl-rtl-text": "^0.3.0",
-		"maplibre-gl": "5.8.0"
+		"@turf/turf": "^7.3.4",
+		"maplibre-gl": "5.8.0",
+		"turf": "^3.0.14"
 	}
 }

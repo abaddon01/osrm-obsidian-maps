@@ -69,29 +69,11 @@ export class StyleManager {
 				source: sourceId
 			});
 		});
-                // spec.sources['osm']= {
-                //        type: "raster",
-                //        tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-                //        tileSize: 256,
-                //        attribution: "&copy; OpenStreetMap Contributors",
-                //        maxzoom: 12,
-                //    };
-                spec.sources['terrainSource']= {
-                        type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
-                        tileSize: 256,
-                    };
-                    spec.sources['hillshadeSource']= {                    
-                        type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
-                        tileSize: 256,
-                    };
-                 spec.terrain={
-                    source: "terrainSource",
-                    exaggeration: 1.5,
-                }                
+                this.addTerrain(spec);
 		return spec;
 	}
+
+        
 
         private addTerrain(spec:StyleSpecification):StyleSpecification
         {
@@ -118,7 +100,30 @@ export class StyleManager {
                       paint: { "hillshade-shadow-color": "#473B24" },
                     }                    
                 );
-                   
+        spec.layers.push({
+            id: 'measure-points',
+            type: 'circle',
+            source: 'geojson',
+            paint: {
+                'circle-radius': 5,
+                'circle-color': '#000'
+            },
+            filter: ['in', '$type', 'Point']
+        });
+        spec.layers.push({
+            id: 'measure-lines',
+            type: 'line',
+            source: 'geojson',
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#000',
+                'line-width': 2.5
+            },
+            filter: ['in', '$type', 'LineString']
+        });                   
                 return spec;
                 
         }
