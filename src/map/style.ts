@@ -1,6 +1,8 @@
 import { App } from 'obsidian';
 import { StyleSpecification } from 'maplibre-gl';
 import { transformMapboxStyle } from '../mapbox-transform';
+import { TileSet } from '../settings';
+import {MapConfig} from '../map-view';
 
 export class StyleManager {
 	private app: App;
@@ -9,10 +11,10 @@ export class StyleManager {
 		this.app = app;
 	}
 
-	async getMapStyle(mapTiles: string[], mapTilesDark: string[]): Promise<string | StyleSpecification> {
+	async getMapStyle(mapTiles: string[], mapTilesDark: string[]): Promise<string|StyleSpecification> {
 		const isDark = this.app.isDarkMode();
 		const tileUrls = isDark && mapTilesDark.length > 0 ? mapTilesDark : mapTiles;
-
+                console.log("getMapStyle");
 		// Determine style URL: use custom if provided, otherwise use default style
 		let styleUrl: string;
 		if (tileUrls.length === 0) {
@@ -22,7 +24,7 @@ export class StyleManager {
 			// Single URL that's not a tile template, treat as style URL
 			styleUrl = tileUrls[0];
 		} else {
-			// Multiple URLs or tile template URLs - create custom raster style (skip to bottom)
+			// Multiple URLs or tile template URL\s - create custom raster style (skip to bottom)
 			styleUrl = '';
 		}
 
@@ -38,7 +40,7 @@ export class StyleManager {
 					// Transform mapbox:// protocol URLs to HTTPS URLs if needed
 					const transformedStyle = accessToken
 						? transformMapboxStyle(styleJson, accessToken)
-						: this.addTerrain(styleJson);
+						: styleJson
                                         
 					return transformedStyle as StyleSpecification;
 				}
@@ -46,7 +48,8 @@ export class StyleManager {
 				console.warn('Failed to fetch style JSON, falling back to URL:', error);
 			}
 			// If fetch fails, fall back to returning the URL directly
-			return styleUrl;
+		console.log('return styleurl');
+                	return styleUrl;
 		}
 
 		// Create a custom style with the configured tile sources (raster tiles)
@@ -93,8 +96,9 @@ export class StyleManager {
 		return spec;
 	}
 
-        private addTerrain(spec:StyleSpecification):StyleSpecification
+        addTerrainStyle(tile: TileSet, spec:StyleSpecification):StyleSpecification
         {
+            console.log("addTerrainStyle");
             spec.sources['terrainSource']= {
                         type: "raster-dem",
                         tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
@@ -117,10 +121,8 @@ export class StyleManager {
                       layout: { visibility: "visible" },
                       paint: { "hillshade-shadow-color": "#473B24" },
                     }                    
-                );
-                   
+                );                   
                 return spec;
-                
         }
 
 	private isTileTemplateUrl(url: string): boolean {

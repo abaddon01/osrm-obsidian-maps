@@ -1,19 +1,19 @@
 import { setIcon, Menu } from 'obsidian';
 import { Map } from 'maplibre-gl';
 
-export class BackgroundSwitcherControl {
+export class TerrainSwitcherControl {
 	private containerEl: HTMLElement;
-	private tileSets: Array<{ id: string; name: string; lightTiles: string; darkTiles: string; isTerrain:boolean }>;
+	private tileSets: Array<{ id: string; name: string; lightTiles: string; darkTiles: string; isTerrain: boolean }>;
 	private onSwitch: (tileSetId: string) => void;
-	private currentTileSetId: string;
+	private currentTerrainSetId: string;
 
 	constructor(
-		tileSets: Array<{ id: string; name: string; lightTiles: string; darkTiles: string; isTerrain:boolean }>,
+		tileSets: Array<{ id: string; name: string; lightTiles: string; darkTiles: string; isTerrain: boolean }>,
 		currentTileSetId: string,
 		onSwitch: (tileSetId: string) => void
 	) {
 		this.tileSets = tileSets;
-		this.currentTileSetId = currentTileSetId;
+		this.currentTerrainSetId = currentTileSetId;
 		this.onSwitch = onSwitch;
 		this.containerEl = createDiv('maplibregl-ctrl maplibregl-ctrl-group canvas-control-group mod-raised');
 	}
@@ -21,22 +21,23 @@ export class BackgroundSwitcherControl {
 	onAdd(map: Map): HTMLElement {
 		const button = this.containerEl.createEl('div', {
 			cls: 'canvas-control-item',
-			attr: { 'aria-label': 'Switch background' }
+			attr: { 'aria-label': 'Switch terrain' }
 		});
-		setIcon(button, 'layers');
+		setIcon(button, 'mountain');
 
 		button.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			const menu = new Menu();
 
 			for (const tileSet of this.tileSets) {
-                            if ( !tileSet.isTerrain)
+                                if ( tileSet.isTerrain )
 				menu.addItem((item) => {
 					item
 						.setTitle(tileSet.name)
-						.setChecked(this.currentTileSetId === tileSet.id)
+                                                .setIcon('mountain-snow')
+						.setChecked(this.currentTerrainSetId === tileSet.id)
 						.onClick(() => {
-							this.currentTileSetId = tileSet.id;
+							this.currentTerrainSetId = tileSet.id;
 							this.onSwitch(tileSet.id);
 						});
 				});
