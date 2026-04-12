@@ -7,7 +7,7 @@ import {
     Value,
     StringValue,
     NullValue,
-    ViewOption,
+    ViewOption
 } from 'obsidian';
 import { LngLatLike, Map, setRTLTextPlugin, StyleSpecification } from 'maplibre-gl';
 import type ObsidianMapsPlugin from './main';
@@ -22,7 +22,7 @@ import { hasOwnProperty, coordinateFromValue } from './map/utils';
 import { rtlPluginCode } from './map/rtl-plugin-code';
 import { TileSet } from './settings';
 
-interface MapConfig {
+export interface MapConfig {
     coordinatesProp: BasesPropertyId | null;
     markerIconProp: BasesPropertyId | null;
     markerColorProp: BasesPropertyId | null;
@@ -31,10 +31,12 @@ interface MapConfig {
     center: [number, number];
     maxZoom: number;
     minZoom: number;
-    mapTiles: string[];
+    mapTilesLight: string[];
     mapTilesDark: string[];
     currentTileSetId: string | null;
     currentTerrainSetId: string | null;
+    mapTiles: TileSet[];
+
 }
 
 export const MapViewType = 'map';
@@ -115,14 +117,8 @@ export class MapView extends BasesView {
     private async updateMapStyle(): Promise<void> {
         if (!this.map || !this.mapConfig) return;
         console.log("updateMapStyle");
-        var tempStyle:StyleSpecification|string = await this.styleManager.getMapStyle(this.mapConfig);
-        if ( this.mapConfig.currentTerrainSetId )
-        {
-            const terrainSet = this.plugin.settings.tileSets.find(ts => ts.id === this.mapConfig?.currentTerrainSetId);
-            if ( terrainSet )
-                tempStyle = this.styleManager.addTerrainStyle( terrainSet, tempStyle as StyleSpecification);
-        }
-        
+        const tempStyle:StyleSpecification|string = await this.styleManager.getMapStyle(this.mapConfig);
+       
         
         this.map.setStyle(tempStyle);
         this.markerManager.clearLoadedIcons();
@@ -141,7 +137,7 @@ export class MapView extends BasesView {
             this.mapConfig.currentTileSetId = tileSetId;
 
             // Update the current tiles
-            this.mapConfig.mapTiles = tileSet.lightTiles ? [tileSet.lightTiles] : [];
+            this.mapConfig.mapTilesLight = tileSet.lightTiles ? [tileSet.lightTiles] : [];
             this.mapConfig.mapTilesDark = tileSet.darkTiles
                 ? [tileSet.darkTiles]
                 : (tileSet.lightTiles ? [tileSet.lightTiles] : []);
@@ -175,7 +171,7 @@ export class MapView extends BasesView {
         // Load config first
         const currentTileSetId = this.mapConfig?.currentTileSetId || null;
         const currentTerrainSetId = this.mapConfig?.currentTerrainSetId || null;
-        this.mapConfig = this.loadConfig(currentTileSetId);
+        this.mapConfig = this.loadConfig(currentTileSetId, currentTerrainSetId);
 
         // Set initial map height based on context
         const isEmbedded = this.isEmbedded();
@@ -188,14 +184,8 @@ export class MapView extends BasesView {
         }
 
         // Get the map style (may involve fetching remote style JSON)
-        var tempStyle:StyleSpecification|string = await this.styleManager.getMapStyle(this.mapConfig.mapTiles, this.mapConfig.mapTilesDark);
-        if ( currentTerrainSetId )
-        {
-            const terrainSet = this.plugin.settings.tileSets.find(ts => ts.id === this.mapConfig?.currentTerrainSetId);
-            if ( terrainSet)
-               tempStyle = this.styleManager.addTerrainStyle(terrainSet, tempStyle as StyleSpecification);
-        }
-        const mapStyle = tempStyle;   
+                
+        const mapStyle  = await this.styleManager.getMapStyle(this.mapConfig);  
         // Determine initial position: prefer ephemeral state if available, otherwise use config
         let initialCenter: [number, number] = [this.mapConfig.center[1], this.mapConfig.center[0]]; // MapLibre uses [lng, lat]
         let initialZoom = this.mapConfig.defaultZoom;
@@ -277,12 +267,13 @@ export class MapView extends BasesView {
 
         // Add background switcher if multiple tile sets are available
         if (this.plugin.settings.tileSets.length > 1) {
-            const currentId = this.mapConfig.currentTileSetId || this.plugin.settings.tileSets[0]?.id || '';
-            if (currentId) {
+            const currentTileId = this.mapConfig.currentTileSetId || this.plugin.settings.tileSets[0]?.id || '';
+            const currentTerrainId = this.mapConfig.currentTerrainSetId || '';
+            if (currentTileId) {
                 this.map.addControl(
                     new BackgroundSwitcherControl(
                         this.plugin.settings.tileSets,
-                        currentId,
+                        currentTileId,
                         (tileSetId) => this.switchToTileSet(tileSetId)
                     ),
                     'top-right'
@@ -290,7 +281,7 @@ export class MapView extends BasesView {
                 this.map.addControl(
                     new TerrainSwitcherControl(
                         this.plugin.settings.tileSets,
-                        currentId,
+                        currentTerrainId,
                         (tileSetId) => this.switchToTileSet(tileSetId)
                     ),
                     'top-right'
@@ -364,7 +355,8 @@ export class MapView extends BasesView {
         const configChanged = this.lastConfigSnapshot !== configSnapshot;
 
         const currentTileSetId = this.mapConfig?.currentTileSetId || null;
-        this.mapConfig = this.loadConfig(currentTileSetId);
+        const currentTerrainSetId = this.mapConfig?.currentTerrainSetId || null;
+        this.mapConfig = this.loadConfig(currentTileSetId, currentTerrainSetId);
 
         // Check if the evaluated center coordinates have changed
         const centerChanged = this.mapConfig.center[0] !== this.lastEvaluatedCenter[0] ||
@@ -478,7 +470,7 @@ export class MapView extends BasesView {
 
         // Update map style if tiles configuration changed
         if (this.isFirstLoad || tilesChanged) {
-            const newStyle = await this.styleManager.getMapStyle(this.mapConfig.mapTiles, this.mapConfig.mapTilesDark);
+            const newStyle = await this.styleManager.getMapStyle(this.mapConfig);
             const currentStyle = this.map.getStyle();
             if (JSON.stringify(newStyle) !== JSON.stringify(currentStyle)) {
                 this.map.setStyle(newStyle);
@@ -512,7 +504,7 @@ export class MapView extends BasesView {
         return false;
     }
 
-    private loadConfig(currentTileSetId: string | null): MapConfig {
+    private loadConfig(currentTileSetId: string | null, currentTerrainSetId:string|null): MapConfig {
         // Load property configurations
         const coordinatesProp = this.config.getAsPropertyId('coordinates');
         const markerIconProp = this.config.getAsPropertyId('markerIcon');
@@ -533,16 +525,17 @@ export class MapView extends BasesView {
 
         // Load map tiles configurations
         // Use view-specific tiles if configured, otherwise fall back to plugin defaults
-        const viewSpecificTiles = this.getArrayConfig('mapTiles');
+        const viewSpecificTiles = this.getArrayConfig('mapTilesLight');
         const viewSpecificTilesDark = this.getArrayConfig('mapTilesDark');
 
-        let mapTiles: string[];
+        let mapTilesLight: string[];
         let mapTilesDark: string[];
         let selectedTileSetId: string | null;
+        let selectedTerrainSetId: string|null;
 
         if (viewSpecificTiles.length > 0) {
             // View has specific tiles configured
-            mapTiles = viewSpecificTiles;
+            mapTilesLight = viewSpecificTiles;
             mapTilesDark = viewSpecificTilesDark;
             selectedTileSetId = null;
         } else if (this.plugin.settings.tileSets.length > 0) {
@@ -553,16 +546,17 @@ export class MapView extends BasesView {
             const selectedTileSet = tileSet || this.plugin.settings.tileSets[0];
 
             selectedTileSetId = selectedTileSet.id;
-            mapTiles = selectedTileSet.lightTiles ? [selectedTileSet.lightTiles] : [];
+            mapTilesLight = selectedTileSet.lightTiles ? [selectedTileSet.lightTiles] : [];
             mapTilesDark = selectedTileSet.darkTiles
                 ? [selectedTileSet.darkTiles]
                 : (selectedTileSet.lightTiles ? [selectedTileSet.lightTiles] : []);
         } else {
             // No tiles configured, will fall back to default style
-            mapTiles = [];
+            mapTilesLight = [];
             mapTilesDark = [];
             selectedTileSetId = null;
         }
+        selectedTerrainSetId = currentTerrainSetId? currentTerrainSetId: this.plugin.settings.currentTerrainSet;
 
         return {
             coordinatesProp,
@@ -573,10 +567,11 @@ export class MapView extends BasesView {
             center,
             maxZoom,
             minZoom,
-            mapTiles,
+            mapTilesLight,
             mapTilesDark,
             currentTileSetId: selectedTileSetId,
-            currentTerrainSetId: null
+            currentTerrainSetId: selectedTerrainSetId,
+            mapTiles:this.plugin.settings.tileSets
         };
     }
 
@@ -645,8 +640,10 @@ export class MapView extends BasesView {
             minZoom: this.config.get('minZoom'),
             maxZoom: this.config.get('maxZoom'),
             mapHeight: this.config.get('mapHeight'),
-            mapTiles: this.config.get('mapTiles'),
+            mapTilesLight: this.config.get('mapTilesLight'),
             mapTilesDark: this.config.get('mapTilesDark'),
+            currentTileSetId: this.config.get('currentTileSetId'),
+            currentTerrainSetId: this.config.get('currentTerrainSetId')
         });
     }
 

@@ -63,6 +63,7 @@ class TileSetModal extends Modal {
                 .setPlaceholder('https://tiles.openfreemap.org/styles/bright')
                 .setValue(this.tileSet.lightTiles)
                 .onChange(value => {
+                    
                     this.tileSet.lightTiles = value;
                 })
             );
@@ -79,6 +80,7 @@ class TileSetModal extends Modal {
             .addText(text => text
                 .setPlaceholder('https://tiles.openfreemap.org/styles/dark')
                 .setValue(this.tileSet.darkTiles)
+                
                 .onChange(value => {
                     this.tileSet.darkTiles = value;
                 })

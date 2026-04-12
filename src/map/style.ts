@@ -11,7 +11,9 @@ export class StyleManager {
 		this.app = app;
 	}
 
-	async getMapStyle(mapTiles: string[], mapTilesDark: string[]): Promise<string|StyleSpecification> {
+	async getMapStyle(mapConfig:MapConfig ): Promise<string|StyleSpecification> {
+                const mapTiles: string[] = mapConfig.mapTilesLight;
+                const mapTilesDark: string[] = mapConfig.mapTilesDark;
 		const isDark = this.app.isDarkMode();
 		const tileUrls = isDark && mapTilesDark.length > 0 ? mapTilesDark : mapTiles;
                 console.log("getMapStyle");
@@ -27,7 +29,8 @@ export class StyleManager {
 			// Multiple URLs or tile template URL\s - create custom raster style (skip to bottom)
 			styleUrl = '';
 		}
-
+                const terrainTileSet = (mapConfig.currentTerrainSetId)?mapConfig.mapTiles.find(ts => ts.id === mapConfig?.currentTerrainSetId):null;
+                
 		// Fetch style JSON for any style URL (default or custom) to avoid CORS issues
 		if (styleUrl) {
 			try {
@@ -38,17 +41,22 @@ export class StyleManager {
 					const accessTokenMatch = styleUrl.match(/access_token=([^&]+)/);
 					const accessToken = accessTokenMatch ? accessTokenMatch[1] : '';
 					// Transform mapbox:// protocol URLs to HTTPS URLs if needed
-					const transformedStyle = accessToken
+					let transformedStyle = accessToken
 						? transformMapboxStyle(styleJson, accessToken)
 						: styleJson
+                                        if ( mapConfig.currentTerrainSetId && terrainTileSet)
+                                        {
+                                            transformedStyle = this.addTerrainStyle(terrainTileSet,transformedStyle);
+                                        }
                                         
+                                        const returnedStyle = transformedStyle;
 					return transformedStyle as StyleSpecification;
 				}
 			} catch (error) {
 				console.warn('Failed to fetch style JSON, falling back to URL:', error);
 			}
 			// If fetch fails, fall back to returning the URL directly
-		console.log('return styleurl');
+		        console.log('return styleurl');
                 	return styleUrl;
 		}
 
@@ -72,27 +80,10 @@ export class StyleManager {
 				source: sourceId
 			});
 		});
-                // spec.sources['osm']= {
-                //        type: "raster",
-                //        tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-                //        tileSize: 256,
-                //        attribution: "&copy; OpenStreetMap Contributors",
-                //        maxzoom: 12,
-                //    };
-                spec.sources['terrainSource']= {
-                        type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
-                        tileSize: 256,
-                    };
-                    spec.sources['hillshadeSource']= {                    
-                        type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
-                        tileSize: 256,
-                    };
-                 spec.terrain={
-                    source: "terrainSource",
-                    exaggeration: 1.5,
-                }                
+                if ( mapConfig.currentTerrainSetId && terrainTileSet)
+                {
+                    this.addTerrainStyle(terrainTileSet,spec);
+                }                                
 		return spec;
 	}
 
@@ -101,7 +92,8 @@ export class StyleManager {
             console.log("addTerrainStyle");
             spec.sources['terrainSource']= {
                         type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+                        tiles: [tile.lightTiles],
+                        //tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
                         tileSize: 256,
                     };
                     spec.sources['hillshadeSource']= {                    
