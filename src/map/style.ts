@@ -48,8 +48,7 @@ export class StyleManager {
                                         {
                                             transformedStyle = this.addTerrainStyle(terrainTileSet,transformedStyle);
                                         }
-                                        
-                                        const returnedStyle = transformedStyle;
+                                                                                
 					return transformedStyle as StyleSpecification;
 				}
 			} catch (error) {
