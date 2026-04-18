@@ -97,7 +97,8 @@ export class StyleManager {
                     };
                     spec.sources['hillshadeSource']= {                    
                         type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+                        tiles: [tile.darkTiles],
+                        //tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
                         tileSize: 256,
                     };
                  spec.terrain={

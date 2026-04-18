@@ -131,12 +131,14 @@ export class MapView extends BasesView {
 
     private async switchToTileSet(tileSetId: string): Promise<void> {
         const tileSet = this.plugin.settings.tileSets.find(ts => ts.id === tileSetId);
-        if (!tileSet || !this.mapConfig) return;
+        if ( !tileSet || !this.mapConfig )
+            return;
         if ( !tileSet.isTerrain )
         {
             this.mapConfig.currentTileSetId = tileSetId;
-
-            // Update the current tiles
+            //this.plugin.settings.currentTileSet = tileSetId;
+            
+        // Update the current tiles
             this.mapConfig.mapTilesLight = tileSet.lightTiles ? [tileSet.lightTiles] : [];
             this.mapConfig.mapTilesDark = tileSet.darkTiles
                 ? [tileSet.darkTiles]
@@ -145,7 +147,9 @@ export class MapView extends BasesView {
         else
         {
             this.mapConfig.currentTerrainSetId = tileSetId;
+            //this.plugin.settings.currentTerrainSet = tileSetId;
         }
+        //await this.plugin.saveSettings();
         // Update the map style
         await this.updateMapStyle();
     }
@@ -219,18 +223,18 @@ export class MapView extends BasesView {
                         tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
                         tileSize: 256,
                         attribution: "&copy; OpenStreetMap Contributors",
-                        maxzoom: 12,
+                        maxzoom: 18,
                     },
-                    terrainSource: {
-                        type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
-                        tileSize: 256,
-                    },
-                    hillshadeSource: {
-                        type: "raster-dem",
-                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
-                        tileSize: 256,
-                    },
+//                    terrainSource: {
+//                        type: "raster-dem",
+//                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+//                        tileSize: 256,
+//                    },
+//                    hillshadeSource: {
+//                        type: "raster-dem",
+//                        tiles: ["https://xyz-mdt.idee.es/1.0.0/raster-dem/{z}/{x}/{y}.png"],
+//                        tileSize: 256,
+//                    },
                 },
                 layers: [
                     {
@@ -238,18 +242,18 @@ export class MapView extends BasesView {
                         type: "raster",
                         source: "osm",
                     },
-                    {
-                        id: "hills",
-                        type: "hillshade",
-                        source: "hillshadeSource",
-                        layout: { visibility: "visible" },
-                        paint: { "hillshade-shadow-color": "#473B24" },
-                    },
+//                    {
+//                        id: "hills",
+//                        type: "hillshade",
+//                        source: "hillshadeSource",
+//                        layout: { visibility: "visible" },
+//                        paint: { "hillshade-shadow-color": "#473B24" },
+//                    },
                 ],
-                terrain: {
-                    source: "terrainSource",
-                    exaggeration: 1,
-                },
+//                terrain: {
+//                    source: "terrainSource",
+//                    exaggeration: 1,
+//                },
             },
 
             center: initialCenter,
@@ -556,7 +560,7 @@ export class MapView extends BasesView {
             mapTilesDark = [];
             selectedTileSetId = null;
         }
-        selectedTerrainSetId = currentTerrainSetId? currentTerrainSetId: this.plugin.settings.currentTerrainSet;
+        selectedTerrainSetId = null;//currentTerrainSetId? currentTerrainSetId: this.plugin.settings.currentTerrainSet;
 
         return {
             coordinatesProp,
